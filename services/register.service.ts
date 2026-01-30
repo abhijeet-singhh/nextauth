@@ -1,6 +1,6 @@
 import { hashPassword } from "@/lib/password";
 import prisma from "@/lib/prisma";
-import { randomUUID } from "crypto";
+import { generateToken, hashToken } from "@/lib/token";
 
 interface RegisterInput {
   email: string;
@@ -32,13 +32,21 @@ export const registerUser = async ({
     },
   });
 
+  // invalidate existing verification tokens
+  await prisma.verificationToken.deleteMany({
+    where: {
+      identifier: email,
+    },
+  });
+
   // create email verification token
-  const token = randomUUID();
+  const rawToken = generateToken();
+  const hashedToken = hashToken(rawToken);
 
   await prisma.verificationToken.create({
     data: {
       identifier: email,
-      token,
+      token: hashedToken,
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24 hours
     },
   });
@@ -46,6 +54,6 @@ export const registerUser = async ({
   return {
     userId: user.id,
     email: user.email,
-    token,
+    token: rawToken,
   };
 };

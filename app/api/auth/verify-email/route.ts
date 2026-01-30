@@ -1,11 +1,12 @@
 import prisma from "@/lib/prisma";
+import { hashToken } from "@/lib/token";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { token } = await req.json();
+    const { token: rawToken } = await req.json();
 
-    if (!token) {
+    if (!rawToken) {
       return NextResponse.json(
         {
           error: "Verification token is required",
@@ -14,28 +15,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const hashedToken = hashToken(rawToken);
+
     // find verification token
     const record = await prisma.verificationToken.findUnique({
-      where: { token },
+      where: { token: hashedToken },
     });
 
-    if (!record) {
+    if (!record || record.expires < new Date()) {
       return NextResponse.json(
         {
-          error: "Invalid verification token",
+          error: "Invalid or expired verification token",
         },
         { status: 400 },
       );
     }
 
-    // check expiration
-    if (record.expires < new Date()) {
-      return NextResponse.json(
-        {
-          error: "Verification token has expired",
-        },
-        { status: 400 },
-      );
+    // fetch user to check verification state
+    const user = await prisma.user.findUnique({
+      where: { email: record.identifier },
+      select: { emailVerified: true },
+    });
+
+    // idempotent: already verified → success
+    if (user?.emailVerified) {
+      await prisma.verificationToken.delete({
+        where: { token: hashedToken },
+      });
+      return NextResponse.json({ success: true });
     }
 
     // mark user verified and delete the token
@@ -45,7 +52,7 @@ export async function POST(req: NextRequest) {
         data: { emailVerified: new Date() },
       }),
       prisma.verificationToken.delete({
-        where: { token },
+        where: { token: hashedToken },
       }),
     ]);
 
