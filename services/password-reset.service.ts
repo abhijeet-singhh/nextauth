@@ -1,3 +1,5 @@
+import { sendEmail } from "@/lib/email";
+import { resetPasswordTemplate } from "@/lib/email-template";
 import { hashPassword } from "@/lib/password";
 import prisma from "@/lib/prisma";
 import { generateToken, hashToken } from "@/lib/token";
@@ -25,6 +27,15 @@ export const createPasswordResetToken = async (email: string) => {
       token: hashedToken,
       expires: new Date(Date.now() + 1000 * 60 * 60), // 1 hour
     },
+  });
+
+  // send reset password email
+  const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${rawToken}`;
+
+  await sendEmail({
+    to: email,
+    subject: "Reset your password",
+    html: resetPasswordTemplate(resetUrl),
   });
 
   return rawToken;

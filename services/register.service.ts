@@ -1,3 +1,5 @@
+import { sendEmail } from "@/lib/email";
+import { verifyEmailTemplate } from "@/lib/email-template";
 import { hashPassword } from "@/lib/password";
 import prisma from "@/lib/prisma";
 import { generateToken, hashToken } from "@/lib/token";
@@ -49,6 +51,15 @@ export const registerUser = async ({
       token: hashedToken,
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24 hours
     },
+  });
+
+  // send verification email
+  const verifyUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${rawToken}`;
+
+  await sendEmail({
+    to: email,
+    subject: "Verify your email",
+    html: verifyEmailTemplate(verifyUrl),
   });
 
   return {
