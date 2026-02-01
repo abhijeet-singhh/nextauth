@@ -2,7 +2,7 @@ import { NextAuthOptions } from "next-auth";
 
 export const authCallbacks: NextAuthOptions["callbacks"] = {
   // runs on signIn - decides whether user is allowed to login
-  async signIn({ user, account }) {
+  async signIn({ user: _user, account }) {
     if (account?.provider !== "credentials") {
       return true;
     }
