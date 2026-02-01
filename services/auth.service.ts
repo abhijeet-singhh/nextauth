@@ -2,31 +2,30 @@ import { AuthUser, CredentialsInput } from "@/auth/auth.types";
 import { verifyPassword } from "@/lib/password";
 import prisma from "@/lib/prisma";
 
-interface VerifyUserCredentialsInput extends CredentialsInput {}
-
-export const verifyUserCredentials = async (
-  input: VerifyUserCredentialsInput,
-): Promise<AuthUser | null> => {
-  const { email, password } = input;
-
+export const verifyUserCredentials = async ({
+  email,
+  password,
+}: CredentialsInput) => {
   // find user by email
   const user = await prisma.user.findUnique({
     where: { email },
   });
 
-  if (!user) return null;
-
-  // user must have a password (credentials user)
-  if (!user.passwordHash) return null;
+  if (!user || !user.passwordHash) {
+    throw new Error("INVALID_CREDENTIALS");
+  }
 
   // email must be verified
-  if (!user.emailVerified) return null;
+  if (!user.emailVerified) {
+    throw new Error("EMAIL_NOT_VERIFIED");
+  }
 
   // verify password
   const isValid = await verifyPassword(password, user.passwordHash);
 
-  if (!isValid) return null;
-
+  if (!isValid) {
+    throw new Error("INVALID_CREDENTIALS");
+  }
   // return minimal auth-safe user
   return {
     id: user.id,

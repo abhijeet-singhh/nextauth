@@ -22,7 +22,12 @@ export const authProviders: NextAuthOptions["providers"] = [
 
       const { email, password } = credentials as CredentialsInput;
 
-      return await verifyUserCredentials({ email, password });
+      try {
+        return await verifyUserCredentials({ email, password });
+      } catch (err: any) {
+        // this sends the error to the client
+        throw new Error(err.message);
+      }
     },
   }),
 
